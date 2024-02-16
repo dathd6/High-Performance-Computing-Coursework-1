@@ -20,6 +20,8 @@ Notes: The time step is calculated using the CFL condition
 
 #include <math.h>
 #include <stdio.h>
+/* Add openmp library */
+#include <omp.h>
 
 /*********************************************************************
                       Main function
@@ -87,18 +89,21 @@ int main() {
 
   /*** Place x points in the middle of the cell ***/
   /* LOOP 1 */
+#pragma omp parallel for
   for (int i = 0; i < NX + 2; i++) {
     x[i] = ((float)i - 0.5) * dx;
   }
 
   /*** Place y points in the middle of the cell ***/
   /* LOOP 2 */
+#pragma omp parallel for
   for (int j = 0; j < NY + 2; j++) {
     y[j] = ((float)j - 0.5) * dy;
   }
 
   /*** Set up Gaussian initial conditions ***/
   /* LOOP 3 */
+#pragma omp parallel for collapse(2)
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
       x2 = (x[i] - x0) * (x[i] - x0);
@@ -111,6 +116,7 @@ int main() {
   FILE *initialfile;
   initialfile = fopen("initial.dat", "w");
   /* LOOP 4 */
+#pragma omp parallel for collapse(2)
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
       fprintf(initialfile, "%g %g %g\n", x[i], y[j], u[i][j]);
@@ -120,6 +126,7 @@ int main() {
 
   /*** Update solution by looping over time steps ***/
   /* LOOP 5 */
+#pragma omp parallel for collapse(2)
   for (int m = 0; m < nsteps; m++) {
 
     /*** Apply boundary conditions at u[0][:] and u[NX+1][:] ***/
