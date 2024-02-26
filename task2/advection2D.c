@@ -49,8 +49,8 @@ int main() {
   const float x0 = 0.1; // Centre(x)
   const float y0 = 15;  // Centre(y)
   const float t0 = 3;
-  const float sigmax = 5;    // Width(x)
-  const float sigmay = 0.03; // Width(y)
+  const float sigmax = 0.03;    // Width(x)
+  const float sigmay = 5; // Width(y)
   const float sigmat = 1;
   const float sigmax2 = sigmax * sigmax; // Width(x) squared
   const float sigmay2 = sigmay * sigmay; // Width(y) squared
@@ -175,7 +175,7 @@ int main() {
        *    x = 0 (the left boundary) so that it varies with height (y)
        *    and time (t = step(m) * dt) accroding to the given equation
        * */
-      t2 = (m * dt - t0) * (m * dt - x0);
+      t2 = (m * dt - t0) * (m * dt - t0);
       y2 = (y[j] - y0) * (y[j] - y0);
       u[0][j] = exp(-1.0 * ((t2 / (2.0 * sigmat2)) + (y2 / (2.0 * sigmay2))));
 
