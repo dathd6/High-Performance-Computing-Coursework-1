@@ -32,13 +32,13 @@ int main() {
   const int NX = 1000;    // Number of x points
   const int NY = 1000;    // Number of y points
   const float xmin = 0.0; // Minimum x value
+  const float ymin = 0.0; // Minimum y value
   /* Task 2
    *  Change the computational domain
    *  - 0 <= x <= 30.0m
    *  - 0 <= y <= 30.0m
    * */
   const float xmax = 30.0; // Maximum x value
-  const float ymin = 0.0;  // Minimum y value
   const float ymax = 30.0; // Maximum y value
 
   /* Parameters for the Gaussian initial conditions */
@@ -46,12 +46,13 @@ int main() {
    *    set new values for y0 and sigmay
    *    add new values t0 and sigmat
    * */
-  const float x0 = 0.1;                  // Centre(x)
-  const float y0 = 15;                   // Centre(y)
-  const float t0 = 3;                    // dfgadfj
-  const float sigmax = 0.03;             // Width(x)
-  const float sigmay = 5;                // Width(y)
-  const float sigmat = 1;                // adsfhahdf
+  const float x0 = 0.1; // Centre(x)
+  const float y0 = 15;  // Centre(y)
+  const float t0 = 3;
+  const float sigmax = 0.03; // Width(x)
+  const float sigmay = 5;    // Width(y)
+  const float sigmat = 1;
+  const float sigmat2 = sigmat * sigmat;
   const float sigmax2 = sigmax * sigmax; // Width(x) squared
   const float sigmay2 = sigmay * sigmay; // Width(y) squared
 
@@ -87,6 +88,7 @@ int main() {
 
   float x2; // x squared (used to calculate iniital conditions)
   float y2; // y squared (used to calculate iniital conditions)
+  float t2; // t squared
 
   /* Calculate distance between points */
   float dx = (xmax - xmin) / ((float)NX);
@@ -122,7 +124,7 @@ int main() {
 
   /*** Set up Gaussian initial conditions ***/
   /* LOOP 3 */
-#pragma omp parallel for collapse(2) private(x2, y2) shared(x, y, u)
+#pragma omp parallel for collapse(2) shared(u)
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
       /* Task 2
