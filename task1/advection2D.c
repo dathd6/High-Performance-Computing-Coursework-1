@@ -115,11 +115,11 @@ int main() {
   initialfile = fopen("initial.dat", "w");
   /* LOOP 4 */
   /* This nested loop cannot be paralleled
-   *    - The 'fprintf' do not need to execute in order so the
+   *    - The 'fprintf' need to execute in order so the
    *      'gnuplot' command can visualize the plot
-   *    - However, multiple threads attempt to write to a file at
+   *    - Because multiple threads attempt to write to a file at
    *      the same time (race conditions) could lead to output from
-   *      different threads is mixed together lead
+   *      different threads is mixed together lead to corrupted file
    * */
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
@@ -131,12 +131,13 @@ int main() {
   /*** Update solution by looping over time steps ***/
   /* LOOP 5 */
   /*
-   * This loop can't run this loop parallel safely and effectively
+   * This loop can't run parallel safely and effectively
    * Due to data dependencies
-   *    - Types of loop-carried dependency: Output dependency and k
+   *    - Types of loop-carried dependency: Output dependency
    *    - Reason: Write the same element of u lead to race conditions.
-   *                  Loop 6 & 7 update boundary elements, while Loop 9 update
-   *                  every elements --> lead to race conditions
+   *              Loop 6 & 7 update boundary elements of 'u',
+   *              while Loop 9 update lead to a certain element could
+   *              be changed before updating it.
    * */
   for (int m = 0; m < nsteps; m++) {
 
@@ -183,6 +184,13 @@ int main() {
   FILE *finalfile;
   finalfile = fopen("final.dat", "w");
   /* LOOP 10 */
+  /* This nested loop cannot be paralleled
+   *    - The 'fprintf' need to execute in order so the
+   *      'gnuplot' command can visualize the plot
+   *    - Because multiple threads attempt to write to a file at
+   *      the same time (race conditions) could lead to output from
+   *      different threads is mixed together lead to corrupted file
+   * */
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
       fprintf(finalfile, "%g %g %g\n", x[i], y[j], u[i][j]);
