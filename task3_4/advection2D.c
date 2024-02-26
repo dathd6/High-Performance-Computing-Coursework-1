@@ -65,9 +65,9 @@ int main() {
   /* Task 3
    *  Parameters to calculate the horizontal velocity
    * */
-  const float u_fric_vel = 0.2; // friction velocity
-  const float z0 = 1.0;         // roughness length
-  const float k = 0.41;         // Von Karman's constant
+  const float fric_vel = 0.1; // friction velocity
+  const float z0 = 1.0;       // roughness length
+  const float k = 0.41;       // Von Karman's constant
 
   /* Time stepping parameters */
   const float CFL = 0.9; // CFL number
@@ -93,10 +93,10 @@ int main() {
   float u[NX + 2][NY + 2];    // Array of u values
   float dudt[NX + 2][NY + 2]; // Rate of change of u
 
-  float x2;        // x squared (used to calculate iniital conditions)
-  float y2;        // y squared (used to calculate iniital conditions)
-  float t2;        // t squared
-  float hori_velx; // horizontal velocity
+  float x2;     // x squared (used to calculate iniital conditions)
+  float y2;     // y squared (used to calculate iniital conditions)
+  float t2;     // t squared
+  float h_velx; // horizontal velocity
 
   /* Calculate distance between points */
   float dx = (xmax - xmin) / ((float)NX);
@@ -213,13 +213,13 @@ int main() {
          *    velx(z) = (u* / k) * ln(z / z0)
          * */
         if (y[j] > z0) {
-          hori_velx = (u_fric_vel / k) * log(y[j]) / sqrt(exp(z0));
+          h_velx = (fric_vel / k) * log(y[j] / z0);
         }
         /* z <= z0: set the horizontal velocity to zero */
         else {
-          hori_velx = 0.0;
+          h_velx = 0.0;
         }
-        dudt[i][j] = -hori_velx * (u[i][j] - u[i - 1][j]) / dx -
+        dudt[i][j] = -h_velx * (u[i][j] - u[i - 1][j]) / dx -
                      vely * (u[i][j] - u[i][j - 1]) / dy;
       }
     }
