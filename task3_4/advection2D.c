@@ -65,9 +65,9 @@ int main() {
   /* Task 3
    *  Parameters to calculate the horizontal velocity
    * */
-  const float ustar = 0.2; // friction velocity
-  const float z0 = 1.0;    // roughness length
-  const float k = 0.41;    // Von Karman's constant
+  const float u_fric_vel = 0.2; // friction velocity
+  const float z0 = 1.0;         // roughness length
+  const float k = 0.41;         // Von Karman's constant
 
   /* Time stepping parameters */
   const float CFL = 0.9; // CFL number
@@ -201,7 +201,7 @@ int main() {
     /*** Calculate rate of change of u using leftward difference ***/
     /* Loop over points in the domain but not boundary values */
     /* LOOP 8 */
-#pragma omp parallel for collapse(2) shared(dudt, u, dx, dy)
+#pragma omp parallel for collapse(2) private(hori_velx) shared(dudt, u, dx, dy)
     for (int i = 1; i < NX + 1; i++) {
       for (int j = 1; j < NY + 1; j++) {
         /* Task 3
@@ -213,7 +213,7 @@ int main() {
          *    velx(z) = (u* / k) * ln(z / z0)
          * */
         if (y[j] > z0) {
-          hori_velx = (ustar / k) * log(y[j] / z0);
+          hori_velx = (u_fric_vel / k) * log(y[j]) / sqrt(exp(z0));
         }
         /* z <= z0: set the horizontal velocity to zero */
         else {
@@ -253,6 +253,37 @@ int main() {
     }
   }
   fclose(finalfile);
+
+  /* Task 4
+   *    Calculate the vertically averaged distribution of u(x, y)
+   * */
+  float vert_avg_dist[NX]; // array store average of u at each value of x
+  float intensity_sum;     // allows us to average the value of u(x,y) for the
+                           // entire range of y values at each value of x
+  /* Loop over points in the domain but not boundary values */
+  for (int i = 1; i < NX + 1; i++) {
+    intensity_sum = 0.0;
+    for (int j = 1; j < NY + 1; j++) {
+      intensity_sum +=
+          u[i][j]; // sum the y attribute of u(x, y) at each value of x
+    }
+    vert_avg_dist[i] =
+        intensity_sum / (float)NY; // average the values of intensity in the y
+                                   // direction at each value of x
+    // printf("%d\n", NY);
+    // printf("%f\n", intensity_sum);
+    // printf("%f\n\n", vert_avg_dist[i]);
+  }
+
+  /*** Write array of vertically averaged u values out to file ***/
+  FILE *vertavgfile;
+  vertavgfile = fopen("vertavg.dat", "w");
+  for (int i = 0; i < NX + 1; i++) {
+    for (int j = 0; j < NY + 1; j++) {
+      fprintf(vertavgfile, "%g %g\n", x[i], vert_avg_dist[i]);
+    }
+  }
+  fclose(vertavgfile);
 
   return 0;
 }
