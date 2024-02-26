@@ -87,14 +87,14 @@ int main() {
 
   /*** Place x points in the middle of the cell ***/
   /* LOOP 1 */
-#pragma omp parallel for default(none) shared(x, dx)
+#pragma omp parallel for shared(x, dx)
   for (int i = 0; i < NX + 2; i++) {
     x[i] = ((float)i - 0.5) * dx;
   }
 
   /*** Place y points in the middle of the cell ***/
   /* LOOP 2 */
-#pragma omp parallel for default(none) shared(y, dy)
+#pragma omp parallel for shared(y, dy)
   for (int j = 0; j < NY + 2; j++) {
     y[j] = ((float)j - 0.5) * dy;
   }

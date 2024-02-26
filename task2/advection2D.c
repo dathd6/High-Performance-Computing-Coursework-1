@@ -49,12 +49,12 @@ int main() {
   const float x0 = 0.1; // Centre(x)
   const float y0 = 15;  // Centre(y)
   const float t0 = 3;
-  const float sigmax = 0.03; // Width(x)
-  const float sigmay = 5;    // Width(y)
+  const float sigmax = 5;    // Width(x)
+  const float sigmay = 0.03; // Width(y)
   const float sigmat = 1;
-  const float sigmat2 = sigmat * sigmat;
   const float sigmax2 = sigmax * sigmax; // Width(x) squared
   const float sigmay2 = sigmay * sigmay; // Width(y) squared
+  const float sigmat2 = sigmat * sigmat;
 
   /* Boundary conditions */
   const float bval_left = 0.0;  // Left boudnary value
@@ -110,14 +110,14 @@ int main() {
 
   /*** Place x points in the middle of the cell ***/
   /* LOOP 1 */
-#pragma omp parallel for default(none) shared(x, dx)
+#pragma omp parallel for shared(x, dx)
   for (int i = 0; i < NX + 2; i++) {
     x[i] = ((float)i - 0.5) * dx;
   }
 
   /*** Place y points in the middle of the cell ***/
   /* LOOP 2 */
-#pragma omp parallel for default(none) shared(y, dy)
+#pragma omp parallel for shared(y, dy)
   for (int j = 0; j < NY + 2; j++) {
     y[j] = ((float)j - 0.5) * dy;
   }
@@ -139,7 +139,14 @@ int main() {
   FILE *initialfile;
   initialfile = fopen("initial.dat", "w");
   /* LOOP 4 */
-#pragma omp parallel for collapse(2) default(none) shared(initialfile, x, y, u)
+  /*
+   * This nested loop cannot be paralleled
+   *    - The 'fprintf' need to execute in order so the
+   *      'gnuplot' command can visualize the plot
+   *    - Because multiple threads attempt to write to a file at
+   *      the same time (race conditions) could lead to output from
+   *      different threads is mixed together lead to corrupted file
+   * */
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
       fprintf(initialfile, "%g %g %g\n", x[i], y[j], u[i][j]);
@@ -150,20 +157,28 @@ int main() {
   /*** Update solution by looping over time steps ***/
   /* LOOP 5 */
   /*
-   * This loop can't run this loop parallel safely and effectively
+   * This loop can't run parallel safely and effectively
    * Due to data dependencies
-   *    - Types of loop-carried dependency: Output dependency and k
+   *    - Types of loop-carried dependency: Output dependency
    *    - Reason: Write the same element of u lead to race conditions.
-   *                  Loop 6 & 7 update boundary elements, while Loop 9 update
-   *                  every elements --> lead to race conditions
+   *              Loop 6 & 7 update boundary elements of 'u',
+   *              while Loop 9 update lead to a certain element could
+   *              be changed before updating it.
    * */
   for (int m = 0; m < nsteps; m++) {
 
     /*** Apply boundary conditions at u[0][:] and u[NX+1][:] ***/
     /* LOOP 6 */
-#pragma omp parallel for shared(u)
+#pragma omp parallel for private(t2, y2) shared(u, dt, m, y)
     for (int j = 0; j < NY + 2; j++) {
-      u[0][j] = bval_left;
+      /* Task 2:
+       *    x = 0 (the left boundary) so that it varies with height (y)
+       *    and time (t = step(m) * dt) accroding to the given equation
+       * */
+      t2 = (m * dt - t0) * (m * dt - x0);
+      y2 = (y[j] - y0) * (y[j] - y0);
+      u[0][j] = exp(-1.0 * ((t2 / (2.0 * sigmat2)) + (y2 / (2.0 * sigmay2))));
+
       u[NX + 1][j] = bval_right;
     }
 
@@ -202,15 +217,13 @@ int main() {
   FILE *finalfile;
   finalfile = fopen("final.dat", "w");
   /* LOOP 10 */
-  /* Cannot be parallelised - Parallel loop iterations are not
-   * carried out in the order specified by the loop iterator
-   * The outer loop will mismatch the 'i' and 'j' indicies
-   * because they are processsed by different threads.
-   * These print statements need to happen in order so the
-   * loop iterations must take place in order.
-   * We can’t parallelise this loop.
+  /* This nested loop cannot be paralleled
+   *    - The 'fprintf' need to execute in order so the
+   *      'gnuplot' command can visualize the plot
+   *    - Because multiple threads attempt to write to a file at
+   *      the same time (race conditions) could lead to output from
+   *      different threads is mixed together lead to corrupted file
    * */
-#pragma omp parallel for collapse(2) default(shared)
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
       fprintf(finalfile, "%g %g %g\n", x[i], y[j], u[i][j]);
