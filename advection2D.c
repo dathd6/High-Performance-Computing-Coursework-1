@@ -19,9 +19,8 @@ Notes: The time step is calculated using the CFL condition
 **********************************************************************/
 
 #include <math.h>
-#include <stdio.h>
-/* Add openmp library */
 #include <omp.h>
+#include <stdio.h>
 
 /*********************************************************************
                       Main function
@@ -33,15 +32,26 @@ int main() {
   const int NX = 1000;    // Number of x points
   const int NY = 1000;    // Number of y points
   const float xmin = 0.0; // Minimum x value
-  const float xmax = 1.0; // Maximum x value
-  const float ymin = 0.0; // Minimum y value
-  const float ymax = 1.0; // Maximum y value
+  /* Task 2
+   *  Change the computational domain
+   *  - 0 <= x <= 30.0m
+   *  - 0 <= y <= 30.0m
+   * */
+  const float xmax = 30.0; // Maximum x value
+  const float ymin = 0.0;  // Minimum y value
+  const float ymax = 30.0; // Maximum y value
 
   /* Parameters for the Gaussian initial conditions */
+  /* Task 2
+   *    set new values for y0 and sigmay
+   *    add new values t0 and sigmat
+   * */
   const float x0 = 0.1;                  // Centre(x)
-  const float y0 = 0.1;                  // Centre(y)
+  const float y0 = 15;                   // Centre(y)
+  const float t0 = 3;                    // dfgadfj
   const float sigmax = 0.03;             // Width(x)
-  const float sigmay = 0.03;             // Width(y)
+  const float sigmay = 5;                // Width(y)
+  const float sigmat = 1;                // adsfhahdf
   const float sigmax2 = sigmax * sigmax; // Width(x) squared
   const float sigmay2 = sigmay * sigmay; // Width(y) squared
 
@@ -52,12 +62,21 @@ int main() {
   const float bval_upper = 0.0; // Upper bounary
 
   /* Time stepping parameters */
-  const float CFL = 0.9;   // CFL number
-  const int nsteps = 1500; // Number of time steps
+  const float CFL = 0.9; // CFL number
+  /* Task 2
+   *  Change maximum number of time steps to 1000
+   *  so that the material dose not advect out of
+   *  the computational domain
+   * */
+  const int nsteps = 1000; // Number of time steps
 
   /* Velocity */
-  const float velx = 0.01; // Velocity in x direction
-  const float vely = 0.01; // Velocity in y direction
+  /* Task 2
+   *   Change the horizontal velocity velx = 1.0 m/s
+   *   Change the vertical velocity vely= 0 m/s
+   * */
+  const float velx = 1.0; // Velocity in x direction
+  const float vely = 0.0; // Velocity in y direction
 
   /* Arrays to store variables. These have NX+2 elements
      to allow boundary values to be stored at both ends */
@@ -89,26 +108,28 @@ int main() {
 
   /*** Place x points in the middle of the cell ***/
   /* LOOP 1 */
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(x, dx)
   for (int i = 0; i < NX + 2; i++) {
     x[i] = ((float)i - 0.5) * dx;
   }
 
   /*** Place y points in the middle of the cell ***/
   /* LOOP 2 */
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(y, dy)
   for (int j = 0; j < NY + 2; j++) {
     y[j] = ((float)j - 0.5) * dy;
   }
 
   /*** Set up Gaussian initial conditions ***/
   /* LOOP 3 */
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2) private(x2, y2) shared(x, y, u)
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
-      x2 = (x[i] - x0) * (x[i] - x0);
-      y2 = (y[j] - y0) * (y[j] - y0);
-      u[i][j] = exp(-1.0 * ((x2 / (2.0 * sigmax2)) + (y2 / (2.0 * sigmay2))));
+      /* Task 2
+       *  Start with an empty computational domain
+       *  u(x, y) = 0
+       * */
+      u[i][j] = 0;
     }
   }
 
@@ -116,7 +137,7 @@ int main() {
   FILE *initialfile;
   initialfile = fopen("initial.dat", "w");
   /* LOOP 4 */
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2) default(none) shared(initialfile, x, y, u)
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
       fprintf(initialfile, "%g %g %g\n", x[i], y[j], u[i][j]);
@@ -126,11 +147,19 @@ int main() {
 
   /*** Update solution by looping over time steps ***/
   /* LOOP 5 */
-#pragma omp parallel for collapse(2)
+  /*
+   * This loop can't run this loop parallel safely and effectively
+   * Due to data dependencies
+   *    - Types of loop-carried dependency: Output dependency and k
+   *    - Reason: Write the same element of u lead to race conditions.
+   *                  Loop 6 & 7 update boundary elements, while Loop 9 update
+   *                  every elements --> lead to race conditions
+   * */
   for (int m = 0; m < nsteps; m++) {
 
     /*** Apply boundary conditions at u[0][:] and u[NX+1][:] ***/
     /* LOOP 6 */
+#pragma omp parallel for shared(u)
     for (int j = 0; j < NY + 2; j++) {
       u[0][j] = bval_left;
       u[NX + 1][j] = bval_right;
@@ -138,6 +167,7 @@ int main() {
 
     /*** Apply boundary conditions at u[:][0] and u[:][NY+1] ***/
     /* LOOP 7 */
+#pragma omp parallel for shared(u)
     for (int i = 0; i < NX + 2; i++) {
       u[i][0] = bval_lower;
       u[i][NY + 1] = bval_upper;
@@ -146,6 +176,7 @@ int main() {
     /*** Calculate rate of change of u using leftward difference ***/
     /* Loop over points in the domain but not boundary values */
     /* LOOP 8 */
+#pragma omp parallel for collapse(2) shared(dudt, u, dx, dy)
     for (int i = 1; i < NX + 1; i++) {
       for (int j = 1; j < NY + 1; j++) {
         dudt[i][j] = -velx * (u[i][j] - u[i - 1][j]) / dx -
@@ -156,6 +187,7 @@ int main() {
     /*** Update u from t to t+dt ***/
     /* Loop over points in the domain but not boundary values */
     /* LOOP 9 */
+#pragma omp parallel for collapse(2) shared(u, dudt, dt)
     for (int i = 1; i < NX + 1; i++) {
       for (int j = 1; j < NY + 1; j++) {
         u[i][j] = u[i][j] + dudt[i][j] * dt;
@@ -168,6 +200,15 @@ int main() {
   FILE *finalfile;
   finalfile = fopen("final.dat", "w");
   /* LOOP 10 */
+  /* Cannot be parallelised - Parallel loop iterations are not
+   * carried out in the order specified by the loop iterator
+   * The outer loop will mismatch the 'i' and 'j' indicies
+   * because they are processsed by different threads.
+   * These print statements need to happen in order so the
+   * loop iterations must take place in order.
+   * We can’t parallelise this loop.
+   * */
+#pragma omp parallel for collapse(2) default(shared)
   for (int i = 0; i < NX + 2; i++) {
     for (int j = 0; j < NY + 2; j++) {
       fprintf(finalfile, "%g %g %g\n", x[i], y[j], u[i][j]);
