@@ -201,7 +201,7 @@ int main() {
     /*** Calculate rate of change of u using leftward difference ***/
     /* Loop over points in the domain but not boundary values */
     /* LOOP 8 */
-#pragma omp parallel for collapse(2) private(hori_velx) shared(dudt, u, dx, dy)
+#pragma omp parallel for collapse(2) private(h_velx) shared(dudt, u, dx, dy)
     for (int i = 1; i < NX + 1; i++) {
       for (int j = 1; j < NY + 1; j++) {
         /* Task 3
@@ -255,29 +255,26 @@ int main() {
   fclose(finalfile);
 
   /* Task 4
-   *    Calculate the vertically averaged distribution of u(x, y)
+   * 	Calculating the vertically averaged distribution
    * */
-  float vert_avg_dist[NX]; // array store average of u at each value of x
-  float intensity_sum;     // allows us to average the value of u(x,y) for the
-                           // entire range of y values at each value of x
-  /* Loop over points in the domain but not boundary values */
+
+  float vert_avg_dist[NX]; // array store vertically averaged values of u at each value of x
+  float sum_u;     // sum of vertically values of u at each value of x
+			
+  /* Calculate the vertically averaged distribution of u at each value of x */
   for (int i = 1; i < NX + 1; i++) {
-    intensity_sum = 0.0;
+    /* Calculate sum of u at x = i */
+    sum_u = 0.0;
     for (int j = 1; j < NY + 1; j++) {
-      intensity_sum +=
-          u[i][j]; // sum the y attribute of u(x, y) at each value of x
+      sum_u += u[i][j];
     }
-    vert_avg_dist[i] =
-        intensity_sum / (float)NY; // average the values of intensity in the y
-                                   // direction at each value of x
-    // printf("%d\n", NY);
-    // printf("%f\n", intensity_sum);
-    // printf("%f\n\n", vert_avg_dist[i]);
+    /* Calculate average of u at x = i */
+    vert_avg_dist[i] = sum_u / (float)NY; 
   }
 
-  /*** Write array of vertically averaged u values out to file ***/
+  /*** Write the result to vert_avg.dat ***/
   FILE *vertavgfile;
-  vertavgfile = fopen("vertavg.dat", "w");
+  vertavgfile = fopen("vert_avg.dat", "w");
   for (int i = 0; i < NX + 1; i++) {
     for (int j = 0; j < NY + 1; j++) {
       fprintf(vertavgfile, "%g %g\n", x[i], vert_avg_dist[i]);
