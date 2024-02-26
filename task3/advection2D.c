@@ -208,9 +208,12 @@ int main() {
          *   Horizontal velocity velx varies with height according to the
          *   logarithmic profile
          * */
-        /* z > z0: Apply equation 1 to calculate horizontal velocity */
+        /* z > z0: Apply equation 1 to calculate horizontal velocity
+         *         Height in this code is equivalent to array y
+         *    velx(z) = (u* / k) * ln(z / z0)
+         * */
         if (y[j] > z0) {
-          hori_velx = (ustar / k) * (log(y[j]) / sqrt(exp(z0)));
+          hori_velx = (ustar / k) * log(y[j] / z0);
         }
         /* z <= z0: set the horizontal velocity to zero */
         else {
